@@ -12,6 +12,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { TASK_OUTCOME_VALUES } from '../../../common/enums/task-outcome.enum';
+
 export class UpdateFlowStateDto {
   @IsOptional()
   @IsBoolean()
@@ -79,6 +81,19 @@ export class UpdateBlockDto {
   @IsOptional()
   @IsString()
   endTime?: string;
+
+  @IsOptional()
+  @IsIn(TASK_OUTCOME_VALUES)
+  outcome?: 'achieved' | 'missed' | 'later';
+}
+
+export class SetBlockOutcomeDto {
+  @IsString()
+  blockId!: string;
+
+  /** null o ausente = quitar estado */
+  @IsOptional()
+  outcome?: 'achieved' | 'missed' | 'later' | null;
 }
 
 export class PatchDayBlockDto {
@@ -118,6 +133,10 @@ export class TimelineBlockDto {
   @IsOptional()
   @IsBoolean()
   completed?: boolean;
+
+  @IsOptional()
+  @IsIn(TASK_OUTCOME_VALUES)
+  outcome?: 'achieved' | 'missed' | 'later';
 }
 
 export class ReplaceDayBlocksDto {

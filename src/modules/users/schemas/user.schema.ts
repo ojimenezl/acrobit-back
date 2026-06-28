@@ -60,6 +60,9 @@ export class TimelineBlock {
 
   @Prop({ default: false })
   completed!: boolean;
+
+  @Prop({ enum: ['achieved', 'missed', 'later'], required: false })
+  outcome?: 'achieved' | 'missed' | 'later';
 }
 
 @Schema({ _id: false })

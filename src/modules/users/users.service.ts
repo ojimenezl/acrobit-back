@@ -10,6 +10,7 @@ import { Model } from 'mongoose';
 import { MAX_DAILY_BLOCKS } from '../../common/constants/days-of-week';
 import { hasRequiredWeekInputs } from '../../common/constants/week-plan';
 import { DayOfWeek } from '../../common/enums/day-of-week.enum';
+import { TASK_OUTCOME_VALUES } from '../../common/enums/task-outcome.enum';
 import { SyncUserDto } from '../auth/dto/sync-user.dto';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
 import { TimelineScheduleService } from '../organizer/timeline-schedule.service';
@@ -18,6 +19,7 @@ import {
   PatchDayBlockDto,
   ReorderDayBlocksDto,
   ReplaceDayBlocksDto,
+  SetBlockOutcomeDto,
   UpdateFlowStateDto,
   UpdateSelectedActivitiesDto,
   UpdateWeekInputsDto,
@@ -268,16 +270,26 @@ export class UsersService {
       }
     }
 
-    dayPlan.blocks = dto.blocks.map((block) => ({
-      id: block.id,
-      label: block.label.trim(),
-      categoryId: block.categoryId,
-      startTime: block.startTime,
-      endTime: block.endTime,
-      isUserDefined: block.isUserDefined ?? block.categoryId === 'usuario',
-      cancelled: block.cancelled ?? false,
-      completed: block.completed ?? false,
-    })) as TimelineBlock[];
+    dayPlan.blocks = dto.blocks.map((block) => {
+      const mapped: TimelineBlock = {
+        id: block.id,
+        label: block.label.trim(),
+        categoryId: block.categoryId,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        isUserDefined: block.isUserDefined ?? block.categoryId === 'usuario',
+        cancelled: block.cancelled ?? false,
+        completed: block.completed ?? false,
+      };
+
+      if (block.outcome) {
+        this.applyBlockOutcome(mapped, block.outcome);
+      } else if (block.completed) {
+        mapped.completed = true;
+      }
+
+      return mapped;
+    });
 
     user.weekPlan.updatedAt = new Date();
     user.stats.totalWeekTasks = this.countActiveBlocks(user.weekPlan);
@@ -339,6 +351,10 @@ export class UsersService {
       block.endTime = patch.endTime;
     }
 
+    if (patch.outcome !== undefined) {
+      this.applyBlockOutcome(block, patch.outcome);
+    }
+
     if (block.startTime >= block.endTime) {
       throw new BadRequestException('startTime debe ser anterior a endTime.');
     }
@@ -346,6 +362,37 @@ export class UsersService {
     dayPlan.blocks = [...dayPlan.blocks].sort((a, b) =>
       a.startTime.localeCompare(b.startTime),
     );
+
+    user.weekPlan.updatedAt = new Date();
+    user.markModified('weekPlan');
+    await user.save();
+
+    return user.weekPlan;
+  }
+
+  async setBlockOutcome(
+    firebaseUid: string,
+    day: DayOfWeek,
+    dto: SetBlockOutcomeDto,
+  ): Promise<WeekPlan> {
+    const user = await this.requireUser(firebaseUid);
+    const dayPlan = user.weekPlan.days.find((item) => item.day === day);
+
+    if (!dayPlan) {
+      throw new NotFoundException(`No hay plan para el día ${day}.`);
+    }
+
+    const block = dayPlan.blocks.find((item) => item.id === dto.blockId);
+
+    if (!block) {
+      throw new NotFoundException(`Bloque ${dto.blockId} no encontrado.`);
+    }
+
+    if (block.cancelled) {
+      throw new BadRequestException('No se puede marcar una tarea cancelada.');
+    }
+
+    this.applyBlockOutcome(block, dto.outcome ?? null);
 
     user.weekPlan.updatedAt = new Date();
     user.markModified('weekPlan');
@@ -384,6 +431,24 @@ export class UsersService {
         sum + day.blocks.filter((block) => !block.cancelled).length,
       0,
     );
+  }
+
+  private applyBlockOutcome(
+    block: TimelineBlock,
+    outcome: 'achieved' | 'missed' | 'later' | null | undefined,
+  ): void {
+    if (!outcome) {
+      block.outcome = undefined;
+      block.completed = false;
+      return;
+    }
+
+    if (!(TASK_OUTCOME_VALUES as string[]).includes(outcome)) {
+      throw new BadRequestException('Estado de tarea inválido.');
+    }
+
+    block.outcome = outcome;
+    block.completed = outcome === 'achieved';
   }
 
   private getDayStart(day: DayOfWeek): string {

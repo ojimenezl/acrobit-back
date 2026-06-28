@@ -18,6 +18,7 @@ import {
   PatchDayBlockDto,
   ReplaceDayBlocksDto,
   ReorderDayBlocksDto,
+  SetBlockOutcomeDto,
   UpdateFlowStateDto,
   UpdateSelectedActivitiesDto,
   UpdateWeekInputsDto,
@@ -111,6 +112,21 @@ export class UsersController {
     @Body() dto: PatchDayBlockDto,
   ) {
     const weekPlan = await this.usersService.patchDayBlock(
+      firebaseUser.uid,
+      day,
+      dto,
+    );
+    return { weekPlan };
+  }
+
+  @Patch('me/week-plan/days/:day/blocks/outcome')
+  @UseGuards(FirebaseAuthGuard)
+  async setBlockOutcome(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Param('day', new ParseEnumPipe(DayOfWeek)) day: DayOfWeek,
+    @Body() dto: SetBlockOutcomeDto,
+  ) {
+    const weekPlan = await this.usersService.setBlockOutcome(
       firebaseUser.uid,
       day,
       dto,
