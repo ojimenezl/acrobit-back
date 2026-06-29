@@ -29,3 +29,17 @@ export class GenerateCoachDayDto {
   @IsEnum(DayOfWeek)
   day!: DayOfWeek;
 }
+
+export class RescheduleCoachBlockDto {
+  @IsEnum(DayOfWeek)
+  day!: DayOfWeek;
+
+  @IsString()
+  blockId!: string;
+
+  @IsEnum(CoachPhase)
+  phase!: CoachPhase;
+
+  @IsString()
+  currentTimeIso!: string;
+}

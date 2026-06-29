@@ -81,6 +81,42 @@ export class TimelineScheduleService {
     return this.fromMinutes(this.toMinutes(time) + minutes);
   }
 
+  /** Encuentra un hueco sin solapamiento; desplaza hacia adelante si hace falta. */
+  resolveTimeSlot(
+    preferredStart: string,
+    durationMinutes: number,
+    existing: TimelineBlock[],
+    excludeBlockId?: string,
+  ): { startTime: string; endTime: string; adjusted: boolean } {
+    let startMinutes = this.toMinutes(preferredStart);
+    const duration = Math.max(durationMinutes, MIN_DURATION_MINUTES);
+    const sorted = this.sortByStartTime(
+      existing.filter((block) => block.id !== excludeBlockId),
+    );
+
+    let adjusted = false;
+
+    for (const block of sorted) {
+      const blockStart = this.toMinutes(block.startTime);
+      const blockEnd = this.toMinutes(block.endTime);
+      const candidateEnd = startMinutes + duration;
+
+      const overlaps =
+        startMinutes < blockEnd + SLOT_GAP_MINUTES &&
+        candidateEnd > blockStart - SLOT_GAP_MINUTES;
+
+      if (overlaps) {
+        startMinutes = blockEnd + SLOT_GAP_MINUTES;
+        adjusted = true;
+      }
+    }
+
+    const startTime = this.fromMinutes(startMinutes);
+    const endTime = this.fromMinutes(startMinutes + duration);
+
+    return { startTime, endTime, adjusted };
+  }
+
   private toMinutes(time: string): number {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;

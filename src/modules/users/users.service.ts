@@ -14,6 +14,7 @@ import { CoachPhase } from '../../common/enums/task-engagement.enum';
 import { TASK_OUTCOME_VALUES } from '../../common/enums/task-outcome.enum';
 import { SyncUserDto } from '../auth/dto/sync-user.dto';
 import { CoachPromptService } from '../ai/coach-prompt.service';
+import { CoachRescheduleService } from '../ai/coach-reschedule.service';
 import { CoachBlockContext } from '../ai/types/coach-prompt.types';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
 import { TimelineScheduleService } from '../organizer/timeline-schedule.service';
@@ -31,6 +32,7 @@ import {
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
+  RescheduleCoachBlockDto,
 } from './dto/coach.dto';
 import {
   ChatMessage,
@@ -51,6 +53,7 @@ export class UsersService {
     private readonly weekOrganizer: WeekOrganizerService,
     private readonly timelineSchedule: TimelineScheduleService,
     private readonly coachPrompts: CoachPromptService,
+    private readonly coachReschedule: CoachRescheduleService,
   ) {}
 
   count(): Promise<number> {
@@ -482,6 +485,56 @@ export class UsersService {
 
     const result = await this.coachPrompts.generateDayPrompts(dto.day, active);
     return result;
+  }
+
+  async rescheduleCoachBlock(
+    firebaseUid: string,
+    dto: RescheduleCoachBlockDto,
+  ): Promise<
+    Awaited<ReturnType<CoachRescheduleService['proposeReschedule']>> & {
+      usedAi: boolean;
+    }
+  > {
+    const user = await this.requireUser(firebaseUid);
+    const block = this.requireCoachBlock(user, dto.day, dto.blockId);
+    const dayPlan = user.weekPlan?.days.find((item) => item.day === dto.day);
+
+    if (!dayPlan) {
+      throw new NotFoundException(`No hay plan para el día ${dto.day}.`);
+    }
+
+    const dayBlocks = this.mapCoachDayBlocks(user, dto.day);
+    const proposal = await this.coachReschedule.proposeReschedule(
+      {
+        day: dto.day,
+        phase: dto.phase,
+        block: this.mapCoachBlock(block),
+        dayBlocks,
+        currentTimeIso: dto.currentTimeIso,
+        weekPlanSummary: this.mapWeekPlanSummary(user.weekPlan),
+      },
+      dayPlan.blocks.filter((item) => !item.cancelled && !item.completed),
+    );
+
+    return {
+      ...proposal,
+      usedAi: proposal.source === 'ai',
+    };
+  }
+
+  private mapWeekPlanSummary(weekPlan: WeekPlan | undefined) {
+    if (!weekPlan) {
+      return { days: [] };
+    }
+
+    return {
+      days: weekPlan.days.map((dayPlan) => ({
+        day: dayPlan.day,
+        activeBlockCount: dayPlan.blocks.filter(
+          (block) => !block.cancelled && !block.completed,
+        ).length,
+      })),
+    };
   }
 
   private requireCoachBlock(

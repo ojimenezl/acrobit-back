@@ -27,6 +27,7 @@ import {
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
+  RescheduleCoachBlockDto,
 } from './dto/coach.dto';
 import { toUserResponse } from './user.mapper';
 import { UsersService } from './users.service';
@@ -205,5 +206,14 @@ export class UsersController {
     @Body() dto: GenerateCoachDayDto,
   ) {
     return this.usersService.generateCoachDay(firebaseUser.uid, dto);
+  }
+
+  @Post('me/coach/reschedule')
+  @UseGuards(FirebaseAuthGuard)
+  async rescheduleCoachBlock(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: RescheduleCoachBlockDto,
+  ) {
+    return this.usersService.rescheduleCoachBlock(firebaseUser.uid, dto);
   }
 }
