@@ -205,6 +205,48 @@ export class TaskEngagement {
   updatedAt!: Date;
 }
 
+@Schema({ _id: false })
+export class CoachPromptRecord {
+  @Prop({ required: true })
+  id!: string;
+
+  @Prop({ required: true })
+  blockId!: string;
+
+  @Prop({ required: true, enum: DayOfWeek })
+  day!: DayOfWeek;
+
+  @Prop({ required: true, enum: CoachPhase })
+  phase!: CoachPhase;
+
+  @Prop({ required: true })
+  title!: string;
+
+  @Prop({ required: true })
+  body!: string;
+
+  @Prop({ type: [String], default: ['yes', 'no', 'reorganize'] })
+  quickReplies!: string[];
+
+  @Prop({ required: true })
+  categoryId!: string;
+
+  @Prop({ required: true })
+  blockLabel!: string;
+
+  @Prop({ required: true })
+  startTime!: string;
+
+  @Prop()
+  recommendation?: string;
+
+  @Prop({ required: true, type: Date })
+  generatedAt!: Date;
+
+  @Prop({ required: true, enum: ['ai', 'fallback'] })
+  source!: 'ai' | 'fallback';
+}
+
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
   @Prop({ required: true, unique: true, index: true })
@@ -254,6 +296,9 @@ export class User {
 
   @Prop({ type: [TaskEngagement], default: [] })
   coachEngagements!: TaskEngagement[];
+
+  @Prop({ type: [CoachPromptRecord], default: [] })
+  coachPrompts!: CoachPromptRecord[];
 
   @Prop()
   fcmToken?: string;

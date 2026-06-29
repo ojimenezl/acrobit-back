@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -28,6 +29,7 @@ import {
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
   CoachRespondDto,
+  GetCoachPromptsQueryDto,
   PatchCoachEngagementDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
@@ -217,6 +219,15 @@ export class UsersController {
     @Body() dto: RescheduleCoachBlockDto,
   ) {
     return this.usersService.rescheduleCoachBlock(firebaseUser.uid, dto);
+  }
+
+  @Get('me/coach/prompts')
+  @UseGuards(FirebaseAuthGuard)
+  async getCoachPrompts(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Query() query: GetCoachPromptsQueryDto,
+  ) {
+    return this.usersService.getCoachPrompts(firebaseUser.uid, query.day);
   }
 
   @Get('me/coach/engagement')

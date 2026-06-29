@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { OrganizerModule } from '../organizer/organizer.module';
 import { CoachEngagementService } from './coach-engagement.service';
+import { CoachPromptStoreService } from './coach-prompt-store.service';
 import { User, UserSchema } from './schemas/user.schema';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
@@ -13,7 +14,7 @@ import { UsersService } from './users.service';
     OrganizerModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService, CoachEngagementService],
+  providers: [UsersService, CoachEngagementService, CoachPromptStoreService],
   exports: [UsersService, MongooseModule],
 })
 export class UsersModule {}

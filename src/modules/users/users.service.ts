@@ -17,6 +17,7 @@ import { CoachPromptService } from '../ai/coach-prompt.service';
 import { CoachRescheduleService } from '../ai/coach-reschedule.service';
 import { CoachBlockContext } from '../ai/types/coach-prompt.types';
 import { CoachEngagementService } from './coach-engagement.service';
+import { CoachPromptStoreService } from './coach-prompt-store.service';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
 import { TimelineScheduleService } from '../organizer/timeline-schedule.service';
 import {
@@ -58,6 +59,7 @@ export class UsersService {
     private readonly coachPrompts: CoachPromptService,
     private readonly coachReschedule: CoachRescheduleService,
     private readonly coachEngagement: CoachEngagementService,
+    private readonly coachPromptStore: CoachPromptStoreService,
   ) {}
 
   count(): Promise<number> {
@@ -457,6 +459,9 @@ export class UsersService {
       prepMinutesBefore: 10,
     });
 
+    this.coachPromptStore.upsertPrompt(user, prompt);
+    await user.save();
+
     return { prompt, usedAi: prompt.source === 'ai' };
   }
 
@@ -476,6 +481,16 @@ export class UsersService {
       prepMinutesBefore: 10,
     });
 
+    if (recommendation) {
+      this.coachPromptStore.setRecommendation(
+        user,
+        dto.day,
+        dto.blockId,
+        recommendation,
+      );
+      await user.save();
+    }
+
     return { recommendation, usedAi: recommendation !== null };
   }
 
@@ -488,6 +503,8 @@ export class UsersService {
     const active = dayBlocks.filter((block) => !this.isCoachBlockCancelled(user, dto.day, block.id));
 
     const result = await this.coachPrompts.generateDayPrompts(dto.day, active);
+    this.coachPromptStore.upsertPrompts(user, result.prompts);
+    await user.save();
     return result;
   }
 
@@ -520,10 +537,18 @@ export class UsersService {
       dayPlan.blocks.filter((item) => !item.cancelled && !item.completed),
     );
 
+    this.coachPromptStore.invalidateBlock(user, dto.day, dto.blockId);
+    await user.save();
+
     return {
       ...proposal,
       usedAi: proposal.source === 'ai',
     };
+  }
+
+  async getCoachPrompts(firebaseUid: string, day?: DayOfWeek) {
+    const user = await this.requireUser(firebaseUid);
+    return { prompts: this.coachPromptStore.listPrompts(user, day) };
   }
 
   async getCoachEngagements(firebaseUid: string) {

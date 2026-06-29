@@ -81,3 +81,9 @@ export class CoachRespondDto {
   @IsEnum(CoachUserResponse)
   response!: CoachUserResponse;
 }
+
+export class GetCoachPromptsQueryDto {
+  @IsOptional()
+  @IsEnum(DayOfWeek)
+  day?: DayOfWeek;
+}

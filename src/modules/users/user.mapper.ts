@@ -30,6 +30,15 @@ export function toUserResponse(user: UserDocument) {
         };
       },
     ) ?? [],
+    coachPrompts: (json['coachPrompts'] as unknown[] | undefined)?.map((item) => {
+      const prompt = item as Record<string, unknown>;
+      return {
+        ...prompt,
+        generatedAt: prompt['generatedAt']
+          ? new Date(String(prompt['generatedAt'])).toISOString()
+          : new Date().toISOString(),
+      };
+    }) ?? [],
     fcmToken: json['fcmToken'] ?? null,
     createdAt: json['createdAt'] ?? null,
     updatedAt: json['updatedAt'] ?? null,
