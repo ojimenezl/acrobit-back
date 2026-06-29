@@ -32,6 +32,7 @@ import {
   GetCoachPromptsQueryDto,
   PatchCoachChatLockDto,
   PatchCoachEngagementDto,
+  PatchFcmTokenDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
 import { toUserResponse } from './user.mapper';
@@ -220,6 +221,21 @@ export class UsersController {
     @Body() dto: RescheduleCoachBlockDto,
   ) {
     return this.usersService.rescheduleCoachBlock(firebaseUser.uid, dto);
+  }
+
+  @Patch('me/fcm-token')
+  @UseGuards(FirebaseAuthGuard)
+  async patchFcmToken(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: PatchFcmTokenDto,
+  ) {
+    return this.usersService.patchFcmToken(firebaseUser.uid, dto);
+  }
+
+  @Post('me/coach/sync-reminders')
+  @UseGuards(FirebaseAuthGuard)
+  async syncCoachReminders(@FirebaseUser() firebaseUser: Express.FirebaseUser) {
+    return this.usersService.syncCoachReminders(firebaseUser.uid);
   }
 
   @Get('me/coach/chat-lock')

@@ -75,6 +75,27 @@ export function isCoachMuted(state: TaskEngagementState): boolean {
   return TERMINAL_STATES.has(state) || state === TaskEngagementState.Muted;
 }
 
+export function shouldSendAtTimeAfterPrep(
+  state: TaskEngagementState,
+): boolean {
+  return (
+    state === TaskEngagementState.PrepSent ||
+    state === TaskEngagementState.PrepYes ||
+    state === TaskEngagementState.Scheduled ||
+    state === TaskEngagementState.Rescheduled
+  );
+}
+
+export function shouldMuteCoachNotifications(
+  state: TaskEngagementState,
+): boolean {
+  return (
+    isCoachMuted(state) ||
+    state === TaskEngagementState.PrepReorganizing ||
+    state === TaskEngagementState.AtTimeReorganizing
+  );
+}
+
 export function coachEngagementKey(day: string, blockId: string): string {
   return `${day}:${blockId}`;
 }

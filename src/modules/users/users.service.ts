@@ -19,6 +19,7 @@ import { CoachBlockContext } from '../ai/types/coach-prompt.types';
 import { CoachChatLockService } from './coach-chat-lock.service';
 import { CoachEngagementService } from './coach-engagement.service';
 import { CoachPromptStoreService } from './coach-prompt-store.service';
+import { CoachReminderDispatchService } from './coach-reminder-dispatch.service';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
 import { TimelineScheduleService } from '../organizer/timeline-schedule.service';
 import {
@@ -38,6 +39,7 @@ import {
   CoachRespondDto,
   PatchCoachChatLockDto,
   PatchCoachEngagementDto,
+  PatchFcmTokenDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
 import {
@@ -63,6 +65,7 @@ export class UsersService {
     private readonly coachEngagement: CoachEngagementService,
     private readonly coachPromptStore: CoachPromptStoreService,
     private readonly coachChatLock: CoachChatLockService,
+    private readonly coachReminderDispatch: CoachReminderDispatchService,
   ) {}
 
   count(): Promise<number> {
@@ -541,6 +544,11 @@ export class UsersService {
     );
 
     this.coachPromptStore.invalidateBlock(user, dto.day, dto.blockId);
+    this.coachReminderDispatch.clearDeliveriesForBlock(
+      user,
+      dto.day,
+      dto.blockId,
+    );
     await user.save();
 
     return {
@@ -552,6 +560,49 @@ export class UsersService {
   async getCoachPrompts(firebaseUid: string, day?: DayOfWeek) {
     const user = await this.requireUser(firebaseUid);
     return { prompts: this.coachPromptStore.listPrompts(user, day) };
+  }
+
+  async patchFcmToken(firebaseUid: string, dto: PatchFcmTokenDto) {
+    const user = await this.requireUser(firebaseUid);
+    user.fcmToken = dto.fcmToken.trim();
+    user.markModified('fcmToken');
+    await user.save();
+    return { fcmToken: user.fcmToken };
+  }
+
+  async syncCoachReminders(firebaseUid: string) {
+    const user = await this.requireUser(firebaseUid);
+    this.coachReminderDispatch.pruneOldDeliveries(user);
+
+    const today = this.getTodayDayOfWeek();
+    const dayBlocks = this.mapCoachDayBlocks(user, today);
+    const active = dayBlocks.filter(
+      (block) => !this.isCoachBlockCancelled(user, today, block.id),
+    );
+
+    const result = await this.coachPrompts.generateDayPrompts(today, active);
+    this.coachPromptStore.upsertPrompts(user, result.prompts);
+    await user.save();
+
+    const activeBlocks = active.length;
+    return {
+      registered: true,
+      activeBlocks,
+      usedAi: result.usedAi,
+    };
+  }
+
+  private getTodayDayOfWeek(): DayOfWeek {
+    const days: DayOfWeek[] = [
+      DayOfWeek.DOMINGO,
+      DayOfWeek.LUNES,
+      DayOfWeek.MARTES,
+      DayOfWeek.MIERCOLES,
+      DayOfWeek.JUEVES,
+      DayOfWeek.VIERNES,
+      DayOfWeek.SABADO,
+    ];
+    return days[new Date().getDay()];
   }
 
   async getCoachChatLock(firebaseUid: string) {

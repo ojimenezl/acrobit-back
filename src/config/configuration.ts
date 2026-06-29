@@ -17,4 +17,7 @@ export default () => ({
     process.env['OPENAI_MAX_OUTPUT_TOKENS'] ?? '6000',
     10,
   ),
+
+  /** Vercel Cron — Authorization: Bearer <CRON_SECRET> */
+  cronSecret: process.env['CRON_SECRET'] ?? '',
 });

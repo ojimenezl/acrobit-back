@@ -58,6 +58,10 @@ export class FirebaseAuthService implements OnModuleInit {
     return getAuth().verifyIdToken(idToken);
   }
 
+  isReady(): boolean {
+    return this.ready;
+  }
+
   private loadServiceAccount(): ServiceAccount | null {
     const jsonEnv = this.config.get<string>('firebaseServiceAccountJson');
     if (jsonEnv?.trim()) {

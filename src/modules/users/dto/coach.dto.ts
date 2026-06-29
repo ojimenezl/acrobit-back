@@ -96,3 +96,8 @@ export class PatchCoachChatLockDto {
   @IsString()
   updatedAt?: string;
 }
+
+export class PatchFcmTokenDto {
+  @IsString()
+  fcmToken!: string;
+}

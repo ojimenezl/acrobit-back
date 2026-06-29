@@ -247,6 +247,21 @@ export class CoachPromptRecord {
   source!: 'ai' | 'fallback';
 }
 
+@Schema({ _id: false })
+export class CoachReminderDelivery {
+  @Prop({ required: true, enum: DayOfWeek })
+  day!: DayOfWeek;
+
+  @Prop({ required: true })
+  blockId!: string;
+
+  @Prop({ required: true, enum: CoachPhase })
+  phase!: CoachPhase;
+
+  @Prop({ type: Date, required: true })
+  sentAt!: Date;
+}
+
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
   @Prop({ required: true, unique: true, index: true })
@@ -299,6 +314,9 @@ export class User {
 
   @Prop({ type: [CoachPromptRecord], default: [] })
   coachPrompts!: CoachPromptRecord[];
+
+  @Prop({ type: [CoachReminderDelivery], default: [] })
+  coachReminderDeliveries!: CoachReminderDelivery[];
 
   @Prop({ default: false })
   coachChatLocked!: boolean;
