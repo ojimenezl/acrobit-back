@@ -27,6 +27,8 @@ import {
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
+  CoachRespondDto,
+  PatchCoachEngagementDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
 import { toUserResponse } from './user.mapper';
@@ -215,5 +217,29 @@ export class UsersController {
     @Body() dto: RescheduleCoachBlockDto,
   ) {
     return this.usersService.rescheduleCoachBlock(firebaseUser.uid, dto);
+  }
+
+  @Get('me/coach/engagement')
+  @UseGuards(FirebaseAuthGuard)
+  async getCoachEngagements(@FirebaseUser() firebaseUser: Express.FirebaseUser) {
+    return this.usersService.getCoachEngagements(firebaseUser.uid);
+  }
+
+  @Patch('me/coach/engagement')
+  @UseGuards(FirebaseAuthGuard)
+  async patchCoachEngagement(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: PatchCoachEngagementDto,
+  ) {
+    return this.usersService.patchCoachEngagement(firebaseUser.uid, dto);
+  }
+
+  @Post('me/coach/respond')
+  @UseGuards(FirebaseAuthGuard)
+  async respondToCoach(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: CoachRespondDto,
+  ) {
+    return this.usersService.respondToCoach(firebaseUser.uid, dto);
   }
 }

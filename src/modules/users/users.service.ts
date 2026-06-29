@@ -16,6 +16,7 @@ import { SyncUserDto } from '../auth/dto/sync-user.dto';
 import { CoachPromptService } from '../ai/coach-prompt.service';
 import { CoachRescheduleService } from '../ai/coach-reschedule.service';
 import { CoachBlockContext } from '../ai/types/coach-prompt.types';
+import { CoachEngagementService } from './coach-engagement.service';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
 import { TimelineScheduleService } from '../organizer/timeline-schedule.service';
 import {
@@ -32,6 +33,8 @@ import {
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
+  CoachRespondDto,
+  PatchCoachEngagementDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
 import {
@@ -54,6 +57,7 @@ export class UsersService {
     private readonly timelineSchedule: TimelineScheduleService,
     private readonly coachPrompts: CoachPromptService,
     private readonly coachReschedule: CoachRescheduleService,
+    private readonly coachEngagement: CoachEngagementService,
   ) {}
 
   count(): Promise<number> {
@@ -520,6 +524,30 @@ export class UsersService {
       ...proposal,
       usedAi: proposal.source === 'ai',
     };
+  }
+
+  async getCoachEngagements(firebaseUid: string) {
+    const user = await this.requireUser(firebaseUid);
+    return { engagements: this.coachEngagement.listEngagements(user) };
+  }
+
+  async patchCoachEngagement(
+    firebaseUid: string,
+    dto: PatchCoachEngagementDto,
+  ) {
+    const user = await this.requireUser(firebaseUid);
+    this.coachEngagement.requireBlock(user, dto.day, dto.blockId);
+    const engagement = this.coachEngagement.patchEngagement(user, dto);
+    await user.save();
+    return { engagement };
+  }
+
+  async respondToCoach(firebaseUid: string, dto: CoachRespondDto) {
+    const user = await this.requireUser(firebaseUid);
+    this.coachEngagement.requireBlock(user, dto.day, dto.blockId);
+    const result = this.coachEngagement.respondToCoach(user, dto);
+    await user.save();
+    return result;
   }
 
   private mapWeekPlanSummary(weekPlan: WeekPlan | undefined) {

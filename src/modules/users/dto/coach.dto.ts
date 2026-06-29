@@ -1,9 +1,10 @@
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum';
 import {
-  COACH_PHASE_VALUES,
   CoachPhase,
+  CoachUserResponse,
+  TaskEngagementState,
 } from '../../../common/enums/task-engagement.enum';
 
 export class GenerateCoachPromptDto {
@@ -42,4 +43,41 @@ export class RescheduleCoachBlockDto {
 
   @IsString()
   currentTimeIso!: string;
+}
+
+export class PatchCoachEngagementDto {
+  @IsEnum(DayOfWeek)
+  day!: DayOfWeek;
+
+  @IsString()
+  blockId!: string;
+
+  @IsEnum(TaskEngagementState)
+  state!: TaskEngagementState;
+
+  @IsOptional()
+  @IsEnum(CoachPhase)
+  lastPhase?: CoachPhase;
+
+  @IsOptional()
+  @IsEnum(CoachUserResponse)
+  lastResponse?: CoachUserResponse;
+
+  @IsOptional()
+  @IsString()
+  updatedAt?: string;
+}
+
+export class CoachRespondDto {
+  @IsEnum(DayOfWeek)
+  day!: DayOfWeek;
+
+  @IsString()
+  blockId!: string;
+
+  @IsEnum(CoachPhase)
+  phase!: CoachPhase;
+
+  @IsEnum(CoachUserResponse)
+  response!: CoachUserResponse;
 }

@@ -2,6 +2,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum';
+import {
+  CoachPhase,
+  CoachUserResponse,
+  TaskEngagementState,
+} from '../../../common/enums/task-engagement.enum';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -179,6 +184,27 @@ export class UserStats {
   cancelledCount!: number;
 }
 
+@Schema({ _id: false })
+export class TaskEngagement {
+  @Prop({ required: true })
+  blockId!: string;
+
+  @Prop({ required: true, enum: DayOfWeek })
+  day!: DayOfWeek;
+
+  @Prop({ required: true, enum: TaskEngagementState })
+  state!: TaskEngagementState;
+
+  @Prop({ enum: CoachPhase })
+  lastPhase?: CoachPhase;
+
+  @Prop({ enum: CoachUserResponse })
+  lastResponse?: CoachUserResponse;
+
+  @Prop({ type: Date, default: () => new Date() })
+  updatedAt!: Date;
+}
+
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
   @Prop({ required: true, unique: true, index: true })
@@ -225,6 +251,9 @@ export class User {
 
   @Prop({ type: UserStats, default: () => ({}) })
   stats!: UserStats;
+
+  @Prop({ type: [TaskEngagement], default: [] })
+  coachEngagements!: TaskEngagement[];
 
   @Prop()
   fcmToken?: string;

@@ -19,6 +19,17 @@ export function toUserResponse(user: UserDocument) {
     notifications: json['notifications'],
     achievements: json['achievements'],
     stats: json['stats'],
+    coachEngagements: (json['coachEngagements'] as unknown[] | undefined)?.map(
+      (item) => {
+        const engagement = item as Record<string, unknown>;
+        return {
+          ...engagement,
+          updatedAt: engagement['updatedAt']
+            ? new Date(String(engagement['updatedAt'])).toISOString()
+            : new Date().toISOString(),
+        };
+      },
+    ) ?? [],
     fcmToken: json['fcmToken'] ?? null,
     createdAt: json['createdAt'] ?? null,
     updatedAt: json['updatedAt'] ?? null,
