@@ -30,6 +30,7 @@ export enum TaskEngagementState {
   AtTimeReorganizing = 'at_time_reorganizing',
   Muted = 'muted',
   Rescheduled = 'rescheduled',
+  SkippedCoach = 'skipped_coach',
 }
 
 export const TASK_ENGAGEMENT_STATE_VALUES = Object.values(TaskEngagementState);

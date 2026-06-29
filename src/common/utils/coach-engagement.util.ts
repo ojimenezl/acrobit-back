@@ -8,6 +8,7 @@ const TERMINAL_STATES = new Set<TaskEngagementState>([
   TaskEngagementState.Muted,
   TaskEngagementState.PrepNo,
   TaskEngagementState.AtTimeNo,
+  TaskEngagementState.SkippedCoach,
 ]);
 
 export function nextEngagementState(
@@ -56,6 +57,12 @@ export function nextEngagementState(
         current === TaskEngagementState.PrepSent
       ) {
         return current;
+      }
+      if (
+        event.phase === CoachPhase.AtTime &&
+        current === TaskEngagementState.AtTimeSent
+      ) {
+        return TaskEngagementState.SkippedCoach;
       }
       return current;
 
