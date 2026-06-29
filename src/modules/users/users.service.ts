@@ -10,8 +10,11 @@ import { Model } from 'mongoose';
 import { MAX_DAILY_BLOCKS } from '../../common/constants/days-of-week';
 import { hasRequiredWeekInputs } from '../../common/constants/week-plan';
 import { DayOfWeek } from '../../common/enums/day-of-week.enum';
+import { CoachPhase } from '../../common/enums/task-engagement.enum';
 import { TASK_OUTCOME_VALUES } from '../../common/enums/task-outcome.enum';
 import { SyncUserDto } from '../auth/dto/sync-user.dto';
+import { CoachPromptService } from '../ai/coach-prompt.service';
+import { CoachBlockContext } from '../ai/types/coach-prompt.types';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
 import { TimelineScheduleService } from '../organizer/timeline-schedule.service';
 import {
@@ -24,6 +27,11 @@ import {
   UpdateSelectedActivitiesDto,
   UpdateWeekInputsDto,
 } from './dto/user-flow.dto';
+import {
+  GenerateCoachDayDto,
+  GenerateCoachPromptDto,
+  GenerateCoachRecommendationDto,
+} from './dto/coach.dto';
 import {
   ChatMessage,
   TimelineBlock,
@@ -42,6 +50,7 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly weekOrganizer: WeekOrganizerService,
     private readonly timelineSchedule: TimelineScheduleService,
+    private readonly coachPrompts: CoachPromptService,
   ) {}
 
   count(): Promise<number> {
@@ -423,6 +432,110 @@ export class UsersService {
 
     user.markModified('chatHistory');
     return user.save();
+  }
+
+  async generateCoachPrompt(
+    firebaseUid: string,
+    dto: GenerateCoachPromptDto,
+  ): Promise<{ prompt: Awaited<ReturnType<CoachPromptService['generatePrompt']>>; usedAi: boolean }> {
+    const user = await this.requireUser(firebaseUid);
+    const block = this.requireCoachBlock(user, dto.day, dto.blockId);
+    const dayBlocks = this.mapCoachDayBlocks(user, dto.day);
+
+    const prompt = await this.coachPrompts.generatePrompt({
+      day: dto.day,
+      phase: dto.phase,
+      block: this.mapCoachBlock(block),
+      dayContext: { day: dto.day, blocks: dayBlocks },
+      prepMinutesBefore: 10,
+    });
+
+    return { prompt, usedAi: prompt.source === 'ai' };
+  }
+
+  async generateCoachRecommendation(
+    firebaseUid: string,
+    dto: GenerateCoachRecommendationDto,
+  ): Promise<{ recommendation: string | null; usedAi: boolean }> {
+    const user = await this.requireUser(firebaseUid);
+    const block = this.requireCoachBlock(user, dto.day, dto.blockId);
+    const dayBlocks = this.mapCoachDayBlocks(user, dto.day);
+
+    const recommendation = await this.coachPrompts.generateRecommendation({
+      day: dto.day,
+      phase: CoachPhase.Prep,
+      block: this.mapCoachBlock(block),
+      dayContext: { day: dto.day, blocks: dayBlocks },
+      prepMinutesBefore: 10,
+    });
+
+    return { recommendation, usedAi: recommendation !== null };
+  }
+
+  async generateCoachDay(
+    firebaseUid: string,
+    dto: GenerateCoachDayDto,
+  ): Promise<{ prompts: Awaited<ReturnType<CoachPromptService['generateDayPrompts']>>['prompts']; usedAi: boolean }> {
+    const user = await this.requireUser(firebaseUid);
+    const dayBlocks = this.mapCoachDayBlocks(user, dto.day);
+    const active = dayBlocks.filter((block) => !this.isCoachBlockCancelled(user, dto.day, block.id));
+
+    const result = await this.coachPrompts.generateDayPrompts(dto.day, active);
+    return result;
+  }
+
+  private requireCoachBlock(
+    user: UserDocument,
+    day: DayOfWeek,
+    blockId: string,
+  ): TimelineBlock {
+    const weekPlan = user.weekPlan;
+    if (!weekPlan) {
+      throw new BadRequestException('Configura tu semana antes de usar el coach.');
+    }
+
+    const dayPlan = weekPlan.days.find((item) => item.day === day);
+    const block = dayPlan?.blocks.find((item) => item.id === blockId);
+
+    if (!block || block.cancelled) {
+      throw new NotFoundException('Bloque no encontrado para el coach.');
+    }
+
+    return block;
+  }
+
+  private isCoachBlockCancelled(
+    user: UserDocument,
+    day: DayOfWeek,
+    blockId: string,
+  ): boolean {
+    const dayPlan = user.weekPlan?.days.find((item) => item.day === day);
+    const block = dayPlan?.blocks.find((item) => item.id === blockId);
+    return !block || block.cancelled || block.completed;
+  }
+
+  private mapCoachDayBlocks(
+    user: UserDocument,
+    day: DayOfWeek,
+  ): CoachBlockContext[] {
+    const dayPlan = user.weekPlan?.days.find((item) => item.day === day);
+    if (!dayPlan) {
+      return [];
+    }
+
+    return dayPlan.blocks
+      .filter((block) => !block.cancelled && !block.completed)
+      .map((block) => this.mapCoachBlock(block));
+  }
+
+  private mapCoachBlock(block: TimelineBlock): CoachBlockContext {
+    return {
+      id: block.id,
+      label: block.label,
+      categoryId: block.categoryId,
+      startTime: block.startTime,
+      endTime: block.endTime,
+    };
   }
 
   private countActiveBlocks(weekPlan: WeekPlan): number {

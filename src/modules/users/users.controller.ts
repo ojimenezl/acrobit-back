@@ -23,6 +23,11 @@ import {
   UpdateSelectedActivitiesDto,
   UpdateWeekInputsDto,
 } from './dto/user-flow.dto';
+import {
+  GenerateCoachDayDto,
+  GenerateCoachPromptDto,
+  GenerateCoachRecommendationDto,
+} from './dto/coach.dto';
 import { toUserResponse } from './user.mapper';
 import { UsersService } from './users.service';
 
@@ -170,5 +175,35 @@ export class UsersController {
       messages: user.chatHistory,
       user: toUserResponse(user),
     };
+  }
+
+  @Post('me/coach/generate-prompt')
+  @UseGuards(FirebaseAuthGuard)
+  async generateCoachPrompt(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: GenerateCoachPromptDto,
+  ) {
+    return this.usersService.generateCoachPrompt(firebaseUser.uid, dto);
+  }
+
+  @Post('me/coach/generate-recommendation')
+  @UseGuards(FirebaseAuthGuard)
+  async generateCoachRecommendation(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: GenerateCoachRecommendationDto,
+  ) {
+    return this.usersService.generateCoachRecommendation(
+      firebaseUser.uid,
+      dto,
+    );
+  }
+
+  @Post('me/coach/generate-day')
+  @UseGuards(FirebaseAuthGuard)
+  async generateCoachDay(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: GenerateCoachDayDto,
+  ) {
+    return this.usersService.generateCoachDay(firebaseUser.uid, dto);
   }
 }
