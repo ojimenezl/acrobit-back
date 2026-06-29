@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum';
 import {
@@ -86,4 +86,13 @@ export class GetCoachPromptsQueryDto {
   @IsOptional()
   @IsEnum(DayOfWeek)
   day?: DayOfWeek;
+}
+
+export class PatchCoachChatLockDto {
+  @IsBoolean()
+  locked!: boolean;
+
+  @IsOptional()
+  @IsString()
+  updatedAt?: string;
 }

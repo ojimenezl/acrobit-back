@@ -300,6 +300,12 @@ export class User {
   @Prop({ type: [CoachPromptRecord], default: [] })
   coachPrompts!: CoachPromptRecord[];
 
+  @Prop({ default: false })
+  coachChatLocked!: boolean;
+
+  @Prop({ type: Date })
+  coachChatLockedAt?: Date;
+
   @Prop()
   fcmToken?: string;
 }

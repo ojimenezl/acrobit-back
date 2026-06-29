@@ -30,6 +30,7 @@ import {
   GenerateCoachRecommendationDto,
   CoachRespondDto,
   GetCoachPromptsQueryDto,
+  PatchCoachChatLockDto,
   PatchCoachEngagementDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
@@ -219,6 +220,21 @@ export class UsersController {
     @Body() dto: RescheduleCoachBlockDto,
   ) {
     return this.usersService.rescheduleCoachBlock(firebaseUser.uid, dto);
+  }
+
+  @Get('me/coach/chat-lock')
+  @UseGuards(FirebaseAuthGuard)
+  async getCoachChatLock(@FirebaseUser() firebaseUser: Express.FirebaseUser) {
+    return this.usersService.getCoachChatLock(firebaseUser.uid);
+  }
+
+  @Patch('me/coach/chat-lock')
+  @UseGuards(FirebaseAuthGuard)
+  async patchCoachChatLock(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: PatchCoachChatLockDto,
+  ) {
+    return this.usersService.patchCoachChatLock(firebaseUser.uid, dto);
   }
 
   @Get('me/coach/prompts')

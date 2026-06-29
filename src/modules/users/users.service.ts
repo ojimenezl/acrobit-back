@@ -16,6 +16,7 @@ import { SyncUserDto } from '../auth/dto/sync-user.dto';
 import { CoachPromptService } from '../ai/coach-prompt.service';
 import { CoachRescheduleService } from '../ai/coach-reschedule.service';
 import { CoachBlockContext } from '../ai/types/coach-prompt.types';
+import { CoachChatLockService } from './coach-chat-lock.service';
 import { CoachEngagementService } from './coach-engagement.service';
 import { CoachPromptStoreService } from './coach-prompt-store.service';
 import { WeekOrganizerService } from '../organizer/week-organizer.service';
@@ -35,6 +36,7 @@ import {
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
   CoachRespondDto,
+  PatchCoachChatLockDto,
   PatchCoachEngagementDto,
   RescheduleCoachBlockDto,
 } from './dto/coach.dto';
@@ -60,6 +62,7 @@ export class UsersService {
     private readonly coachReschedule: CoachRescheduleService,
     private readonly coachEngagement: CoachEngagementService,
     private readonly coachPromptStore: CoachPromptStoreService,
+    private readonly coachChatLock: CoachChatLockService,
   ) {}
 
   count(): Promise<number> {
@@ -549,6 +552,18 @@ export class UsersService {
   async getCoachPrompts(firebaseUid: string, day?: DayOfWeek) {
     const user = await this.requireUser(firebaseUid);
     return { prompts: this.coachPromptStore.listPrompts(user, day) };
+  }
+
+  async getCoachChatLock(firebaseUid: string) {
+    const user = await this.requireUser(firebaseUid);
+    return this.coachChatLock.getChatLock(user);
+  }
+
+  async patchCoachChatLock(firebaseUid: string, dto: PatchCoachChatLockDto) {
+    const user = await this.requireUser(firebaseUid);
+    const lock = this.coachChatLock.patchChatLock(user, dto);
+    await user.save();
+    return { lock };
   }
 
   async getCoachEngagements(firebaseUid: string) {

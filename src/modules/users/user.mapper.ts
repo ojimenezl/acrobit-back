@@ -39,6 +39,10 @@ export function toUserResponse(user: UserDocument) {
           : new Date().toISOString(),
       };
     }) ?? [],
+    coachChatLocked: Boolean(json['coachChatLocked']),
+    coachChatLockedAt: json['coachChatLockedAt']
+      ? new Date(String(json['coachChatLockedAt'])).toISOString()
+      : null,
     fcmToken: json['fcmToken'] ?? null,
     createdAt: json['createdAt'] ?? null,
     updatedAt: json['updatedAt'] ?? null,
