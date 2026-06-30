@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import {
+  buildMotivationalFallback,
+} from '../../common/utils/coach-fallback.util';
 import { CoachPhase } from '../../common/enums/task-engagement.enum';
 import { DayOfWeek } from '../../common/enums/day-of-week.enum';
 import { OpenAiService } from './openai.service';
@@ -90,8 +93,8 @@ export class CoachPromptService {
       const client = this.openAi.getClient();
       const response = await client.chat.completions.create({
         model: this.openAi.model,
-        max_tokens: 400,
-        temperature: 0.65,
+        max_tokens: 480,
+        temperature: 0.72,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: buildCoachSystemPrompt() },
@@ -138,17 +141,21 @@ export class CoachPromptService {
   }
 
   private buildFallback(input: CoachPromptInput): CoachPromptResult {
-    const { block, day, phase } = input;
-    const body =
-      phase === CoachPhase.Prep
-        ? `En ${input.prepMinutesBefore} min toca ${block.label} (${block.startTime}). ¿Empezamos?`
-        : `¡Hora de ${block.label}! Que lo disfrutes.`;
+    const fallback = buildMotivationalFallback({
+      label: input.block.label,
+      phase: input.phase,
+      minutesBefore: input.prepMinutesBefore,
+      startTime: input.block.startTime,
+      endTime: input.block.endTime,
+      categoryId: input.block.categoryId,
+    });
 
     return this.toResult(
       input,
       {
         title: COACH_TITLE,
-        body,
+        body: fallback.body,
+        recommendation: fallback.recommendation,
       },
       'fallback',
     );

@@ -1,21 +1,32 @@
 import { CoachPhase } from '../../../common/enums/task-engagement.enum';
+import { detectCoachTaskIntent, estimateTaskDurationMinutes } from '../../../common/utils/coach-fallback.util';
 import { CoachPromptInput } from '../types/coach-prompt.types';
 
 export function buildCoachSystemPrompt(): string {
-  return `Eres el coach de Acrobit, una app de hábitos y rutinas en español (España).
-Generas mensajes cortos, cálidos y concretos para notificaciones y chat.
+  return `Eres el coach motivador de Acrobit: recomiendas y animas, NO eres una agenda seca.
+La app ayuda con hábitos; tú entiendes la tarea concreta del usuario y hablas en español (España), tuteando.
 
-Reglas:
-- Responde SOLO JSON válido con las claves indicadas.
-- title: usa exactamente "Acrobit quiere preguntarte" salvo que se indique otra cosa.
-- body: máximo 220 caracteres. Tutea al usuario. Menciona la actividad por nombre.
-- Fase prep (−10 min): pregunta si preparar o si quiere una recomendación breve.
-- Fase at_time: mensaje breve de ánimo; NO preguntes largo ni des recomendación.
-- recommendation: SOLO en fase prep y SOLO si la actividad lo amerita (comida, lectura, ejercicio, bienestar, metas).
-  Una línea concreta: plato, autor/libro, canción, rutina, etc. Máximo 120 caracteres.
-  Si no aplica, omite la clave recommendation.
-- Nunca menciones botones; el usuario verá Sí / No / Reorganizar aparte.
-- No marques la tarea como completada ni hables de "logro".`;
+Responde SOLO JSON válido.
+
+title: siempre "Acrobit quiere preguntarte".
+
+body (máx. 220 caracteres):
+- Fase prep (−10 min): mensaje cálido + UNA sugerencia CONCRETA integrada en el texto (plato, autor/libro, ruta de carrera, checklist de llamada, etc.).
+  Usa el nombre exacto de la tarea (task.label). Menciona duración estimada si aplica ("te tomará X min").
+  NO suenes genérico ("tienes tarea a las X"). Suena humano y específico.
+- Fase at_time: ánimo breve al llegar la hora; sin nueva receta ni lista larga; sin preguntas.
+
+recommendation (solo prep, opcional, máx. 120 caracteres):
+- Repite o condensa la sugerencia concreta para mostrarla si el usuario dice Sí.
+- Omite si no aplica.
+
+Ejemplos de tono prep (inspírate, no copies literal):
+- Leer: "En 10 min leemos. ¿Te apetece empezar con un relato de Cortázar? Te tomará 30 min."
+- Correr: "Tu tarea correr se acerca. ¿Contamos 5 cuadras y cerramos la sesión?"
+- Llamada: "En 10 min llamas al seguro. Ten póliza a mano y anota tus preguntas."
+- Comer: "En 10 min debes comer. ¿Pollo con champiñones y ensalada de tomate y lechuga?"
+
+Nunca menciones botones. No marques la tarea como completada.`;
 }
 
 export function buildCoachUserMessage(input: CoachPromptInput): string {
@@ -24,20 +35,31 @@ export function buildCoachUserMessage(input: CoachPromptInput): string {
     .map((block) => `${block.startTime} ${block.label} (${block.categoryId})`)
     .join('; ');
 
+  const durationMinutes = estimateTaskDurationMinutes(
+    input.block.startTime,
+    input.block.endTime,
+  );
+  const taskIntent = detectCoachTaskIntent(
+    input.block.label,
+    input.block.categoryId,
+  );
+
   return JSON.stringify(
     {
       phase: input.phase,
       prepMinutesBefore: input.prepMinutesBefore,
+      taskIntentHint: taskIntent,
       task: {
         label: input.block.label,
         categoryId: input.block.categoryId,
         startTime: input.block.startTime,
         endTime: input.block.endTime,
+        durationMinutes,
         day: input.day,
       },
       otherTasksToday: otherBlocks || 'ninguna',
       outputSchema:
-        input.phase === 'prep'
+        input.phase === CoachPhase.Prep
           ? {
               title: 'string',
               body: 'string',
