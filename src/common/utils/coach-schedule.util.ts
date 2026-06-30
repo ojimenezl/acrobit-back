@@ -1,4 +1,7 @@
-import { COACH_PREP_MINUTES_BEFORE } from '../constants/coach.constants';
+import {
+  COACH_LOCAL_FALLBACK_GRACE_MS,
+  COACH_PREP_MINUTES_BEFORE,
+} from '../constants/coach.constants';
 import { getTodayDayOfWeek, DAYS_OF_WEEK } from '../constants/days-of-week';
 import { DayOfWeek } from '../enums/day-of-week.enum';
 
@@ -61,6 +64,21 @@ export function resolveAtTimeFireAt(
 export function isDueForDispatch(fireAt: Date, now: Date = new Date()): boolean {
   const diffMs = fireAt.getTime() - now.getTime();
   return diffMs <= 90_000 && diffMs >= -30_000;
+}
+
+/**
+ * FCM fallback: solo si pasó la gracia local y aún estamos en la ventana coach.
+ */
+export function isDueForFcmFallback(
+  fireAt: Date,
+  now: Date,
+  windowMinutes: number,
+): boolean {
+  const elapsed = now.getTime() - fireAt.getTime();
+  return (
+    elapsed >= COACH_LOCAL_FALLBACK_GRACE_MS &&
+    elapsed <= windowMinutes * 60_000
+  );
 }
 
 export { getTodayDayOfWeek };

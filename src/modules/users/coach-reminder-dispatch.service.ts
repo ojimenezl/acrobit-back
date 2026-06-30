@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import {
+  COACH_AT_TIME_RESPONSE_WINDOW_MIN,
+  COACH_PREP_RESPONSE_WINDOW_MIN,
   FCM_DATA_TYPES,
   MAX_COACH_NOTIFICATIONS_PER_DAY,
 } from '../../common/constants/coach.constants';
@@ -17,7 +19,7 @@ import {
 } from '../../common/utils/coach-engagement.util';
 import {
   combineDayAndTime,
-  isDueForDispatch,
+  isDueForFcmFallback,
   resolvePrepAt,
   resolveTaskAt,
 } from '../../common/utils/coach-schedule.util';
@@ -132,6 +134,47 @@ export class CoachReminderDispatchService {
     user.markModified('coachReminderDeliveries');
   }
 
+  async ackLocalDelivery(
+    user: UserDocument,
+    day: DayOfWeek,
+    blockId: string,
+    phase: CoachPhase,
+    now = new Date(),
+  ): Promise<void> {
+    if (this.wasAlreadyDelivered(user, day, blockId, phase)) {
+      return;
+    }
+
+    user.coachReminderDeliveries = [
+      ...(user.coachReminderDeliveries ?? []),
+      {
+        day,
+        blockId,
+        phase,
+        sentAt: now,
+        source: 'local',
+      },
+    ];
+    user.markModified('coachReminderDeliveries');
+
+    const current = this.getEngagementState(user, day, blockId);
+    const next = nextEngagementState(current, {
+      type: 'phase_sent',
+      phase,
+    });
+    if (next !== current) {
+      this.coachEngagement.patchEngagement(user, {
+        day,
+        blockId,
+        state: next,
+        lastPhase: phase,
+        updatedAt: now.toISOString(),
+      });
+    }
+
+    await user.save();
+  }
+
   private findDueReminders(user: UserDocument, now: Date): DueReminder[] {
     const plan = user.weekPlan;
     if (!plan?.days?.length) {
@@ -162,7 +205,13 @@ export class CoachReminderDispatchService {
         }
 
         const prepAt = resolvePrepAt(dayPlan.day, block.startTime, now);
-        if (isDueForDispatch(prepAt, now)) {
+        if (
+          isDueForFcmFallback(
+            prepAt,
+            now,
+            COACH_PREP_RESPONSE_WINDOW_MIN,
+          )
+        ) {
           due.push({
             day: dayPlan.day,
             block,
@@ -173,7 +222,13 @@ export class CoachReminderDispatchService {
 
         if (shouldSendAtTimeAfterPrep(state)) {
           const atTime = resolveTaskAt(dayPlan.day, block.startTime, now);
-          if (isDueForDispatch(atTime, now)) {
+          if (
+            isDueForFcmFallback(
+              atTime,
+              now,
+              COACH_AT_TIME_RESPONSE_WINDOW_MIN,
+            )
+          ) {
             due.push({
               day: dayPlan.day,
               block,
@@ -242,6 +297,7 @@ export class CoachReminderDispatchService {
         blockId: item.block.id,
         phase: item.phase,
         sentAt: now,
+        source: 'fcm',
       },
     ];
     user.markModified('coachReminderDeliveries');

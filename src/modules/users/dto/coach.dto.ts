@@ -101,3 +101,14 @@ export class PatchFcmTokenDto {
   @IsString()
   fcmToken!: string;
 }
+
+export class AckCoachReminderDeliveryDto {
+  @IsEnum(DayOfWeek)
+  day!: DayOfWeek;
+
+  @IsString()
+  blockId!: string;
+
+  @IsEnum(CoachPhase)
+  phase!: CoachPhase;
+}

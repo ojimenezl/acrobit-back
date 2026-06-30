@@ -33,6 +33,7 @@ import {
   UpdateWeekInputsDto,
 } from './dto/user-flow.dto';
 import {
+  AckCoachReminderDeliveryDto,
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
@@ -590,6 +591,20 @@ export class UsersService {
       activeBlocks,
       usedAi: result.usedAi,
     };
+  }
+
+  async ackCoachReminderDelivery(
+    firebaseUid: string,
+    dto: AckCoachReminderDeliveryDto,
+  ) {
+    const user = await this.requireUser(firebaseUid);
+    await this.coachReminderDispatch.ackLocalDelivery(
+      user,
+      dto.day,
+      dto.blockId,
+      dto.phase,
+    );
+    return { acknowledged: true };
   }
 
   private getTodayDayOfWeek(): DayOfWeek {

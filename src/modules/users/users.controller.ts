@@ -25,6 +25,7 @@ import {
   UpdateWeekInputsDto,
 } from './dto/user-flow.dto';
 import {
+  AckCoachReminderDeliveryDto,
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
@@ -236,6 +237,15 @@ export class UsersController {
   @UseGuards(FirebaseAuthGuard)
   async syncCoachReminders(@FirebaseUser() firebaseUser: Express.FirebaseUser) {
     return this.usersService.syncCoachReminders(firebaseUser.uid);
+  }
+
+  @Post('me/coach/reminder-delivered')
+  @UseGuards(FirebaseAuthGuard)
+  async ackCoachReminderDelivery(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: AckCoachReminderDeliveryDto,
+  ) {
+    return this.usersService.ackCoachReminderDelivery(firebaseUser.uid, dto);
   }
 
   @Get('me/coach/chat-lock')

@@ -260,6 +260,9 @@ export class CoachReminderDelivery {
 
   @Prop({ type: Date, required: true })
   sentAt!: Date;
+
+  @Prop({ enum: ['local', 'fcm'], default: 'fcm' })
+  source?: 'local' | 'fcm';
 }
 
 @Schema({ timestamps: true, collection: 'users' })
