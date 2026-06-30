@@ -46,7 +46,7 @@ export class UsersController {
   @Get('me')
   @UseGuards(FirebaseAuthGuard)
   async getMe(@FirebaseUser() firebaseUser: Express.FirebaseUser) {
-    const user = await this.usersService.requireUser(firebaseUser.uid);
+    const user = await this.usersService.getClientUser(firebaseUser.uid);
     return { user: toUserResponse(user) };
   }
 

@@ -15,7 +15,16 @@ export function toUserResponse(user: UserDocument) {
     selectedActivities: json['selectedActivities'],
     weekInputs: json['weekInputs'],
     weekPlan: json['weekPlan'],
-    chatHistory: json['chatHistory'],
+    chatHistory:
+      (json['chatHistory'] as unknown[] | undefined)?.map((item) => {
+        const message = item as Record<string, unknown>;
+        return {
+          ...message,
+          timestamp: message['timestamp']
+            ? new Date(String(message['timestamp'])).toISOString()
+            : new Date().toISOString(),
+        };
+      }) ?? [],
     notifications: json['notifications'],
     achievements: json['achievements'],
     stats: json['stats'],

@@ -9,6 +9,7 @@ import { Model } from 'mongoose';
 
 import { MAX_DAILY_BLOCKS } from '../../common/constants/days-of-week';
 import { hasRequiredWeekInputs } from '../../common/constants/week-plan';
+import { pruneChatHistory } from '../../common/utils/chat-retention.util';
 import { DayOfWeek } from '../../common/enums/day-of-week.enum';
 import { CoachPhase } from '../../common/enums/task-engagement.enum';
 import { TASK_OUTCOME_VALUES } from '../../common/enums/task-outcome.enum';
@@ -428,6 +429,9 @@ export class UsersService {
 
   async getChatHistory(firebaseUid: string): Promise<ChatMessage[]> {
     const user = await this.requireUser(firebaseUid);
+    if (this.pruneChatHistoryInPlace(user)) {
+      await user.save();
+    }
     return user.chatHistory;
   }
 
@@ -446,8 +450,27 @@ export class UsersService {
       quickReplies: dto.quickReplies ?? [],
     });
 
+    this.pruneChatHistoryInPlace(user);
     user.markModified('chatHistory');
     return user.save();
+  }
+
+  async getClientUser(firebaseUid: string): Promise<UserDocument> {
+    const user = await this.requireUser(firebaseUid);
+    if (this.pruneChatHistoryInPlace(user)) {
+      await user.save();
+    }
+    return user;
+  }
+
+  private pruneChatHistoryInPlace(user: UserDocument): boolean {
+    const before = user.chatHistory?.length ?? 0;
+    user.chatHistory = pruneChatHistory(user.chatHistory ?? []);
+    if (user.chatHistory.length !== before) {
+      user.markModified('chatHistory');
+      return true;
+    }
+    return false;
   }
 
   async generateCoachPrompt(
