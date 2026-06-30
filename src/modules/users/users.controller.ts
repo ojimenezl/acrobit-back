@@ -35,6 +35,7 @@ import {
   PatchCoachEngagementDto,
   PatchFcmTokenDto,
   RescheduleCoachBlockDto,
+  AddCoachTaskFromChatDto,
 } from './dto/coach.dto';
 import { toUserResponse } from './user.mapper';
 import { UsersService } from './users.service';
@@ -222,6 +223,15 @@ export class UsersController {
     @Body() dto: RescheduleCoachBlockDto,
   ) {
     return this.usersService.rescheduleCoachBlock(firebaseUser.uid, dto);
+  }
+
+  @Post('me/coach/add-task')
+  @UseGuards(FirebaseAuthGuard)
+  async addCoachTaskFromChat(
+    @FirebaseUser() firebaseUser: Express.FirebaseUser,
+    @Body() dto: AddCoachTaskFromChatDto,
+  ) {
+    return this.usersService.addCoachTaskFromChat(firebaseUser.uid, dto);
   }
 
   @Patch('me/fcm-token')

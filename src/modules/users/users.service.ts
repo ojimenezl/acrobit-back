@@ -14,6 +14,7 @@ import { DayOfWeek } from '../../common/enums/day-of-week.enum';
 import { CoachPhase } from '../../common/enums/task-engagement.enum';
 import { TASK_OUTCOME_VALUES } from '../../common/enums/task-outcome.enum';
 import { SyncUserDto } from '../auth/dto/sync-user.dto';
+import { CoachAddTaskService } from '../ai/coach-add-task.service';
 import { CoachPromptService } from '../ai/coach-prompt.service';
 import { CoachRescheduleService } from '../ai/coach-reschedule.service';
 import { CoachBlockContext } from '../ai/types/coach-prompt.types';
@@ -35,6 +36,7 @@ import {
 } from './dto/user-flow.dto';
 import {
   AckCoachReminderDeliveryDto,
+  AddCoachTaskFromChatDto,
   GenerateCoachDayDto,
   GenerateCoachPromptDto,
   GenerateCoachRecommendationDto,
@@ -64,6 +66,7 @@ export class UsersService {
     private readonly timelineSchedule: TimelineScheduleService,
     private readonly coachPrompts: CoachPromptService,
     private readonly coachReschedule: CoachRescheduleService,
+    private readonly coachAddTask: CoachAddTaskService,
     private readonly coachEngagement: CoachEngagementService,
     private readonly coachPromptStore: CoachPromptStoreService,
     private readonly coachChatLock: CoachChatLockService,
@@ -578,6 +581,119 @@ export class UsersService {
     return {
       ...proposal,
       usedAi: proposal.source === 'ai',
+    };
+  }
+
+  async addCoachTaskFromChat(
+    firebaseUid: string,
+    dto: AddCoachTaskFromChatDto,
+  ) {
+    const user = await this.requireUser(firebaseUid);
+    const weekPlan = user.weekPlan;
+
+    if (!weekPlan) {
+      throw new BadRequestException(
+        'Configura tu semana antes de agregar tareas.',
+      );
+    }
+
+    const text = dto.text.trim();
+    if (!text) {
+      throw new BadRequestException('Escribe qué tarea quieres agregar.');
+    }
+
+    const today = this.getTodayDayOfWeek();
+    const parsed = await this.coachAddTask.parseTaskRequest({
+      text,
+      currentTimeIso: dto.currentTimeIso,
+      today,
+      dayBlocks: this.mapCoachDayBlocks(user, today),
+      weekPlanSummary: this.mapWeekPlanSummary(weekPlan),
+    });
+
+    const targetDay = dto.preferredDay ?? parsed.day;
+    const dayPlan = weekPlan.days.find((item) => item.day === targetDay);
+
+    if (!dayPlan) {
+      throw new NotFoundException(`No hay plan para el día ${targetDay}.`);
+    }
+
+    const activeCount = dayPlan.blocks.filter((block) => !block.cancelled).length;
+    if (activeCount >= MAX_DAILY_BLOCKS) {
+      throw new BadRequestException(
+        `Máximo ${MAX_DAILY_BLOCKS} actividades activas por día.`,
+      );
+    }
+
+    const placement = this.coachAddTask.placeTask(
+      { ...parsed, day: targetDay },
+      dayPlan.blocks,
+      targetDay,
+      dto.currentTimeIso,
+      parsed.source,
+    );
+
+    const newBlock: TimelineBlock = {
+      ...placement.block,
+      cancelled: false,
+      completed: false,
+    };
+
+    dayPlan.blocks = this.timelineSchedule
+      .sortByStartTime([...dayPlan.blocks, newBlock]);
+
+    weekPlan.updatedAt = new Date();
+    user.stats.totalWeekTasks = this.countActiveBlocks(weekPlan);
+    user.markModified('weekPlan');
+    user.markModified('stats');
+
+    user.chatHistory.push({
+      id: `chat-${Date.now()}-user`,
+      sender: 'user',
+      text,
+      timestamp: new Date(),
+      quickReplies: [],
+    });
+    user.chatHistory.push({
+      id: `chat-${Date.now()}-coach`,
+      sender: 'coach',
+      text: placement.reason,
+      timestamp: new Date(),
+      quickReplies: [],
+    });
+    this.pruneChatHistoryInPlace(user);
+    user.markModified('chatHistory');
+
+    const activeBlocks = this.mapCoachDayBlocks(user, targetDay);
+    const promptResult = await this.coachPrompts.generateDayPrompts(
+      targetDay,
+      activeBlocks,
+    );
+    this.coachPromptStore.upsertPrompts(user, promptResult.prompts);
+
+    await user.save();
+
+    return {
+      block: newBlock,
+      day: targetDay,
+      adjusted: placement.adjusted,
+      reason: placement.reason,
+      usedAi: parsed.source === 'ai',
+      weekPlan: {
+        days: weekPlan.days,
+        updatedAt:
+          weekPlan.updatedAt instanceof Date
+            ? weekPlan.updatedAt.toISOString()
+            : String(weekPlan.updatedAt ?? new Date().toISOString()),
+      },
+      chatHistory: user.chatHistory.map((message) => ({
+        id: message.id,
+        sender: message.sender,
+        text: message.text,
+        timestamp: new Date(message.timestamp).toISOString(),
+        relatedCategory: message.relatedCategory,
+        quickReplies: message.quickReplies ?? [],
+      })),
     };
   }
 

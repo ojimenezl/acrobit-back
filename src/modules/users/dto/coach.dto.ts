@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { DayOfWeek } from '../../../common/enums/day-of-week.enum';
 import {
@@ -111,4 +111,17 @@ export class AckCoachReminderDeliveryDto {
 
   @IsEnum(CoachPhase)
   phase!: CoachPhase;
+}
+
+export class AddCoachTaskFromChatDto {
+  @IsString()
+  @MaxLength(500)
+  text!: string;
+
+  @IsString()
+  currentTimeIso!: string;
+
+  @IsOptional()
+  @IsEnum(DayOfWeek)
+  preferredDay?: DayOfWeek;
 }
